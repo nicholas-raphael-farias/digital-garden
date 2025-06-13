@@ -6,7 +6,7 @@
 ###### Technical notes
 [[Resources/NodeJS/Node JS Design Patterns Book\|Node JS Design Patterns Book]]
 ###### Certification notes
-[[Projects/Digital Garden/Notas Developer Associate\|Notas Developer Associate]]
+[[Projects/AWS Cert/Developer Associate DVA-C02\|Developer Associate DVA-C02]]
 
 ###### Fun projects
 

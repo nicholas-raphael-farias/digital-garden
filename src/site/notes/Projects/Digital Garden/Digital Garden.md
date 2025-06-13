@@ -2,7 +2,13 @@
 {"dg-publish":true,"permalink":"/projects/digital-garden/digital-garden/","tags":["gardenEntry"]}
 ---
 
-[[Projects/Digital Garden/Node js Design Patterns notes\|Node js Design Patterns notes]]
+
+###### Technical notes
+[[Resources/NodeJS/Node JS Design Patterns Book\|Node JS Design Patterns Book]]
+###### Certification notes
 [[Projects/Digital Garden/Notas Developer Associate\|Notas Developer Associate]]
+
+###### Fun projects
+
 
 

@@ -17,9 +17,9 @@ Secciones 7.8.9
 **ALB** Application Load Balancer
 - layer 7 HTTP/2 y websockets
 - supports redirects
-- Routing to *target groups*, based on path (...com/a o ...com/b), hostname (a.ex.com o b.ex.com), queries o headers
+- Routing to *target groups*, based on path (...com/a o ...com/b), hostname (a_ex_com o b_ex_com), queries o headers
 - great fit for microservices & container-based applications
-- fixed hostname (XXX.region.elb.amazonaws.com)
+- fixed hostname (XXX_region_elb_amazonaws_com)
 - client info comes in headers (X-Forwarded-For, -Port, -Proto)
 
 **Target Group** grupo de instancias relacionadas

@@ -12,15 +12,15 @@ Secciones 7.8.9
 **Load Balancer** server that forwards traffic
 - health checks
 - Classic, Gateway, Network, Application
-- ELB Security group [allows access to port 80 and 443] + app Security group [allows access to only the ELB]
+- ELB Security group (allows access to port 80 and 443) + app Security group (allows access to only the ELB)
 
 **ALB** Application Load Balancer
 - layer 7 HTTP/2 y websockets
 - supports redirects
-- Routing to *target groups*, based on path [...com/a o ...com/b], hostname [a.ex.com o b.ex.com], queries o headers
+- Routing to *target groups*, based on path (...com/a o ...com/b), hostname (a.ex.com o b.ex.com), queries o headers
 - great fit for microservices & container-based applications
-- fixed hostname [XXX.region.elb.amazonaws.com]
-- client info comes in headers [X-Forwarded-For, -Port, -Proto]
+- fixed hostname (XXX.region.elb.amazonaws.com)
+- client info comes in headers (X-Forwarded-For, -Port, -Proto)
 
 **Target Group** grupo de instancias relacionadas
 - EC2s, ECS tasks, Lambdas, IPs
@@ -65,7 +65,7 @@ Secciones 7.8.9
 
 **ASG** Auto Scaling Group
 - un *Launch Template* es AMI + EC2 User Data + EBS Volume + Security Group + SSH key pair + IAM Role + VPC y subnets + Load Balancer Info
-- Se puede escalar usando CloudWatch alarms [monitorean una metrica] 
+- Se puede escalar usando CloudWatch alarms (monitorean una metrica)
 - *Scaling policies*: Target tracking, Simple, Scheduled, Predictive
 - *Cooldowns*: tiempo de espera despues de que un scaling event suceda
 - *Instance Refresh*: recrear todas las instancias al actualizar el launch template
@@ -80,8 +80,8 @@ Seccion 8 RDS, Aurora & Elasticache
 - Up to 15, replicas can be promoted to their own DB
 - Replication
 	- Within AZ for performance
-	- Cross AZ [has network cost]  for disaster recovery
-	- Cross Region replication [has network cost] for high availability ***check, is this right?***
+	- Cross AZ (has network cost)  for disaster recovery
+	- Cross Region replication (has network cost) for high availability ***check, is this right?***
 - replication is ASYNC
 - *Network cost* implicit when data goes out of the AZ 
 - From single AZ to Multi AZ, zero downtime
@@ -98,7 +98,7 @@ Seccion 8 RDS, Aurora & Elasticache
 - You get 6 copies of your data across 3AZs
 	- 4 of them do writes, 3 of them do reads ***CHECK***
 	- self healing, peer to peer replication 
-	- one instance takes writes [master]
+	- one instance takes writes (master)
 - A cluster has 1 write endpoint and one reader endpoint (load balancing)
 
 - at rest encryption, must be defined at launch time

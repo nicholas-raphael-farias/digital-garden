@@ -87,7 +87,7 @@ while (events = demultiplexer.watch(watchedList)) { // (2)
 
 With this pattern, we can handle several I/0 operations inside a single thread
 
-![Screenshot 2025-05-03 at 1.26.04 PM.png](/img/user/Screenshot%202025-05-03%20at%201.26.04%20PM.png)
+![Screenshot 2025-05-03 at 1.26.04 PM.png](/img/user/Images/Screenshot%202025-05-03%20at%201.26.04%20PM.png)
 
 The tasks are spread over time, instead of being spread across multiple threads. This has the clear advantage of minimizing the total idle time of the thread
 
@@ -98,7 +98,7 @@ We can now introduce the reactor pattern, which is a specialization of the algo
 
 The main idea behind the reactor pattern is to have a handler associated with each I/O operation, a handler is represented by a callback , the callback will be invoked as soon as an event is produced and processed
 
-![Screenshot 2025-05-03 at 1.32.29 PM.png](/img/user/Screenshot%202025-05-03%20at%201.32.29%20PM.png)
+![Screenshot 2025-05-03 at 1.32.29 PM.png](/img/user/Images/Screenshot%202025-05-03%20at%201.32.29%20PM.png)
 
 1. the app requests a new operation to the event demultiplexer specifying the handler (handler invoked when completed), submit the request is non blocking, immediately returns control to the app 
 2. when operation completes events are pushed to the queue
@@ -121,7 +121,144 @@ Node.js core team created a native library called **libuv**, with the objective
 
 ### Recipe for Node.js
 
-![Screenshot 2025-05-03 at 1.44.33 PM.png](/img/user/Screenshot%202025-05-03%20at%201.44.33%20PM.png)
+![Screenshot 2025-05-03 at 1.44.33 PM.png](/img/user/Images/Screenshot%202025-05-03%20at%201.44.33%20PM.png)
+
+
+
+# 2 The Module System
+
+### CommonJS
+- require is a function that allows you to import a module
+- exports and module.exports are special variables that can be used to export 
+
+- the *exports* variable is just a reference to the initial value of *module.exports* 
+- we can only attach new properties to the object referenced by the *exports* variable
+
+```js
+exports.hello = () => {
+  console.log('Hello')
+}
+```
+
+- to export anything other than an object literal, such as a function, an instance or a string, we have to reassign *module.exports*
+
+```js
+module.exports = () => {
+  console.log('Hello')
+}
+```
+
+- the require function is *synchronous*
+- this is one of the most important reasons why code Node.js libraries offer synchronous APIs as an alternative to most of the asynchronous ones
+
+
+### Resolving algorithm
+- Node.js loads different versions of a module depending on where the module is loaded from
+- each module is only loaded and evaluated the first time, after that *require()* will return a cached version
+
+### Module definition patterns
+
+The module system besides being a mechanism for loading dependencies *is also a tool for defining APIs*
+
+ - the main factor to consider is the balance between *private* and *public* functionality.
+ - The aim is to maximize information hiding and API usability, while balancing these with other software qualities, such as extensibility and code reuse
+
+#### Named exports
+- the most basic method
+- assigns the values to make public to *properties of the object referenced by exports*
+- *it's the only one compatible with CommonJS*
+
+
+```js
+// file logger.js
+exports.info = (message) => {
+  console.log(`info: ${message}`)
+}
+exports.verbose = (message) => {
+  console.log(`verbose: ${message}`)
+}
+```
+
+#### Exporting a function
+- one of the most popular
+- reassigns the whole *module.exports* variable to a function
+- main strength is that exposes only a single functionality
+- AKA as the *substack pattern*
+
+```js
+// file logger.js
+module.exports = (message) => {
+  console.log(`info: ${message}`)
+}
+```
+
+**Possible extension** 
+- allows to expose other more advanced or secondary functionalities
+
+```js
+module.exports.verbose = (message) => {
+  console.log(`verbose: ${message}`)
+}
+// file main.js
+const logger = require('./logger')
+logger('This is an informational message')
+logger.verbose('This is a verbose message')
+```
+
+
+> The modularity of Node.JS heavily encourages the single responsibility principle SRP
+
+
+#### Exporting a class
+- we allow the user to create new instances using the constructor but also give them the ability yo extend it and forge new classes 
+```js
+class Logger {
+  constructor (name) {
+    this.name = name
+  }
+  log (message) {
+    console.log(`[${this.name}] ${message}`)
+  }
+}
+module.exports = Logger
+
+// file main.js
+const Logger = require('./logger')
+const dbLogger = new Logger('DB')
+dbLogger.info('This is an informational message')
+```
+
+
+#### Exporting an instance
+- leverages the caching mechanism of require() 
+- because the module is cached, *every module that required the logger module will actually always retrieve the same instance object*, thus sharing its state
+- like creating a *singleton* 
+- it does not guarantee uniqueness 
+- *“Note that this technique must be used with caution or avoided altogether.”*
+
+```js
+// file logger.js
+class Logger {
+  constructor (name) {
+    this.count = 0
+    this.name = name
+  }
+  log (message) {
+    this.count++
+    console.log('[' + this.name + '] ' + message)
+  }
+}
+module.exports = new Logger('DEFAULT')
+// main.js
+const logger = require('./logger')
+logger.log('This is an informational message')
+```
+
+#### Monkey patching 
+- is a module modifying the global scope
+- considered bad practice, useful for some cases like testing
+
+
 
 # 3 Callbacks and Events
 
@@ -411,3 +548,444 @@ glob('data/*.txt',
 The function takes a pattern as the first argument, a set of options, and a callback that is invoked with the list of all the files matching the provided pattern. At the same time, the function returns an EventEmitter, which provides a more fine-grained report about the state of the search process.
 
 Combining an EventEmitter with traditional callbacks is an elegant way to offer two different approaches to the same API. One approach is usually meant to be simpler and more immediate to use, while the other is targeted at more advanced scenarios.
+
+
+
+# 5 Async control flow patterns with promises and async/await
+
+- callbacks are the low-level building blocks of asynchronous programming
+- not too developer-friendly
+- can be complex or verbose
+- even properly implemented, a serial execution flow seems complicated and error-prone 
+- errors are fragile, if we forget to forward the error, it gets lost
+
+The first steps toward a better async code is the *promise*
+- a promise is an object that carries the status and eventual result of an async operation
+
+In an attempt to make *serial execution flow* as simple as possible, a new construct was introduced called *async/await*
+
+### Promises 
+- part of EXMAScript 2015 standard
+- a promise is an object that embodies the eventual result or error of an async function
+```js
+promise.then(onFulfilled, onRejected)
+
+asyncOperationPromise(arg)
+  .then(result => {
+    // do stuff with result
+  }, err => {
+    // handle the error
+  })
+
+asyncOperationPromise(arg)
+  .then(result1 => {
+    // returns another promise
+    return asyncOperationPromise(arg2)
+  })
+  .then(result2 => {
+    // returns a value
+    return 'done'
+  })
+  .then(undefined, err => {
+    // any error in the chain is caught here
+  })
+```
+
+
+![Screenshot 2025-08-03 at 2.43.20 PM.png](/img/user/Images/Screenshot%202025-08-03%20at%202.43.20%20PM.png)
+
+
+... TODO add rest
+
+
+### Async/await
+- promises are a quantum leap from callbacks
+- still suboptimal when it comes to writing sequential async code
+- introduction of *async functions and the await expression*
+
+``` js
+async function playingWithDelays () {
+  console.log('Delaying...', new Date())
+  const dateAfterOneSecond = await delay(1000)
+  console.log(dateAfterOneSecond)
+  const dateAfterThreeSeconds = await delay(3000)
+  console.log(dateAfterThreeSeconds)
+  return 'done'
+}
+
+playingWithDelays()
+  .then(result => {
+    console.log(`After 4 seconds: ${result}`)
+  })
+```
+
+- *The await expression works with any value, not just promises* 
+- If a value other than a Promise is provided, then its behavior is similar to waiting a value that it first passed to Promise.resolve()
+- *async functions always return a Promise*
+- promises are still prominent, async/await could be consider syntactic sugar for a simpler consumption of promises 
+
+#### Error handling
+- one of the biggest gains of async/await is the ability to *normalize the behavior of the try...catch block*, to make it work seamlessly with both synchronous throws and asynchronous Promise rejections
+
+**return vs return await**
+- One common antipattern when dealing with errors with async/await is returning a Promise that rejects to the caller and expecting the error to be caught by the local try...catch block of the function that is returning the Promise
+
+```js
+async function errorNotCaught () {
+  try {
+    return delayError(1000)
+  } catch (err) {
+    console.error('Error caught by the async function: ' +
+      err.message)
+  }
+}
+errorNotCaught()
+  .catch(err => console.error('Error caught by the caller: ' +
+    err.message))
+
+> Error caught by the caller: Error after 1000ms
+```
+
+- If our intention is catching locally any error generated by the asynchronous operation that produces the value that we want to return to the caller, then we have to use the await expression on that Promise before we return the value to the caller.
+
+```JS
+async function errorCaught () {
+  try {
+    return await delayError(1000)
+  } catch (err) {
+    console.error('Error caught by the async function: ' +
+      err.message) }
+}
+errorCaught()
+  .catch(err => console.error('Error caught by the caller: ' +
+    err.message))
+```
+
+
+
+### Sequential execution and iteration
+- *Array.forEach and Array.map wont work as expected*
+
+**Parallel execution**
+- undesired effect, if a promise rejects, we have to wait for all the preceding promises to resolve
+
+```js
+async function spiderLinks (currentUrl, content, nesting) {
+  if (nesting === 0) {
+    return
+  }
+  const links = getPageLinks(currentUrl, content)
+  const promises = links.map(link => spider(link, nesting - 1))
+  for (const promise of promises) {
+    await promise
+  }
+}
+```
+
+- the solution is to use *Promise.all()*
+- *Promise.all()* will reject as soon as any promise rejects
+
+```js
+async function spiderLinks (currentUrl, content, nesting) {
+  if (nesting === 0) {
+    return
+  }
+  const links = getPageLinks(currentUrl, content)
+  const promises = links.map(link => spider(link, nesting - 1))
+  return Promise.all(promises)
+}
+```
+
+TODO: 
+### Limited parallel execution 
+### Infinite recursive promise resolution chains
+
+> In terms of patterns and techniques, we should definitely keep in mind the chain of promises (to run tasks in series), promisification, and the Producer-Consumer pattern. Also, pay attention when using Array.forEach() with async/await (you are probably doing it wrong) and keep in mind the difference between a simple return and return await in async functions.
+
+
+
+
+
+
+
+
+
+
+
+NOTE: QUICK GLANCE
+
+# 7 creational design patterns 
+
+### Factory
+- ability to decouple the creation of an object from one particular implementation
+- create an object whose class is determined at runtime
+- reduces the *surface area* exposed, being a function, offers fewer options 
+- can also be used to encapsulate by using closures
+
+```js
+function createImage (name) {
+  if (name.match(/\.jpe?g$/)) {
+    return new ImageJpeg(name)
+  } else if (name.match(/\.gif$/)) {
+    return new ImageGif(name)
+  } else if (name.match(/\.png$/)) {
+    return new ImagePng(name)
+  } else {
+    throw new Error('Unsupported format')
+  }
+}
+```
+
+
+```js
+const noopProfiler = {
+  start () {},
+  end () {}
+}
+export function createProfiler (label) {
+  if (process.env.NODE_ENV === 'production') {
+    return noopProfiler
+  }
+  return new Profiler(label)
+}
+```
+
+### Builder
+- simplifies the creation of complex objects
+
+```js
+class BoatBuilder {
+  withMotors (count, brand, model) {
+    this.hasMotor = true
+    this.motorCount = count
+    return this
+  }
+  withSails (count, material, color) {
+    this.hasSails = true
+    this.sailsCount = count
+    return this
+  }
+  hullColor (color) {
+    this.hullColor = color
+    return this
+  }
+  withCabin () {
+    this.hasCabin = true
+    return this
+  }
+  build() {
+    return new Boat({
+      hasMotor: this.hasMotor,
+      motorCount: this.motorCount,
+      hasSails: this.hasSails,
+      sailsCount: this.sailsCount,
+      hullColor: this.hullColor,
+      hasCabin: this.hasCabin
+    })
+  }
+```
+
+```js
+const myBoat = new BoatBuilder()
+  .withMotors(2, 'Best Motor Co. ', 'OM123')
+  .withSails(1, 'fabric', 'white')
+  .withCabin()
+  .hullColor('blue')
+  .build()
+```
+
+### Revealing Constructor
+- not in the gang of four
+- originated from js and node communities 
+- solves: *how can we reveal some private functionality only at the moment of the object's creation*
+
+- allows us to create *Immutable objects*
+- an example os this pattern is the Promise class
+
+
+### Singleton
+- among the most used
+- enforces the presence of only one instance of a class and centralize its access
+- *simply exporting an instance from a module is already enough to obtain something very similar*
+
+```js
+// file 'dbInstance.js'
+import { Database } from './Database.js'
+export const dbInstance = new Database('my-app-db', {
+    url: 'localhost:5432',
+    username: 'user',
+    password: 'password'
+})
+```
+
+- The module is cached using its full path as the lookup key, *so it is only guaranteed to be a singleton within the current package*
+- MOST of the time we don't really need a pure singleton, so this approach is ok 
+
+
+
+**How to use it**
+
+```js
+//db.js
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import sqlite3 from 'sqlite3'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+export const db = new sqlite3.Database(
+  join(__dirname, 'data.sqlite'))
+```
+
+```js
+import { promisify } from 'util'
+import { db } from './db.js'
+const dbRun = promisify(db.run.bind(db))
+const dbAll = promisify(db.all.bind(db))
+export class Blog {
+  initialize () {
+    const initQuery = `CREATE TABLE IF NOT EXISTS posts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+    return dbRun(initQuery)
+  }
+  createPost (id, title, content, createdAt) {
+    return dbRun('INSERT INTO posts VALUES (?, ?, ?, ?)',
+      id, title, content, createdAt)
+  }
+  getAllPosts () {
+    return dbAll('SELECT * FROM posts ORDER BY created_at DESC')
+  }
+}
+```
+
+```js
+import { Blog } from './blog.js'
+async function main () {
+  const blog = new Blog()
+  await blog.initialize()
+  const posts = await blog.getAllPosts()
+  if (posts.length === 0) {
+    console.log('No post available. Run `node import-posts.js`' +
+      ' to load some sample posts')
+  }
+  for (const post of posts) {
+    console.log(post.title)
+    console.log('-'.repeat(post.title.length))
+    console.log(`Published on ${new Date(post.created_at)
+      .toISOString()}`)
+    console.log(post.content)
+  }
+}
+main().catch(console.error)
+```
+
+
+If used in different packages multiple instances are created
+
+```
+app/
+`-- node_modules
+    |-- package-a
+    |  `-- node_modules
+    |      `-- mydb
+    `-- package-b
+        `-- node_modules
+            `-- mydb
+```
+
+
+To create a pure singleton, it needs a *global variable*
+
+```js
+global.dbInstance = new Database('my-app-db', {/*...*/})
+```
+
+### Dependency Injection
+- in the last example, *blog.js* is tightly coupled to *db.js*
+- to separate them using the *dependency injection* pattern
+- DI is a simple pattern in which the *dependencies of a component are provided as input*
+- each dependency is not hardcoded into the module, is received from the outside and therefore the module can be reused
+
+```js
+// db.js
+export function createDb (dbFile) {
+  return new sqlite3.Database(dbFile)
+}
+
+
+import { promisify } from 'util'
+export class Blog {
+  constructor (db) {
+    this.db = db
+    this.dbRun = promisify(db.run.bind(db))
+    this.dbAll = promisify(db.all.bind(db))
+  }
+  initialize () {
+    const initQuery = `CREATE TABLE IF NOT EXISTS posts (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`
+    return this.dbRun(initQuery)
+  }
+  createPost (id, title, content, createdAt) {
+    return this.dbRun('INSERT INTO posts VALUES (?, ?, ?, ?)',
+      id, title, content, createdAt)
+  }
+  getAllPosts () {
+    return this.dbAll(
+      'SELECT * FROM posts ORDER BY created_at DESC')
+  }
+}
+```
+
+```js
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { Blog } from './blog.js'
+import { createDb } from './db.js'
+const __dirname = dirname(fileURLToPath(import.meta.url))
+async function main () {
+  const db = createDb(join(__dirname, 'data.sqlite'))
+  const blog = new Blog(db)
+  await blog.initialize()
+  const posts = await blog.getAllPosts()
+  if (posts.length === 0) {
+    console.log('No post available. Run `node import-posts.js`' +
+      ' to load some sample posts')
+  }
+  for (const post of posts) {
+    console.log(post.title)
+    console.log('-'.repeat(post.title.length))
+    console.log(`Published on ${new Date(post.created_at)
+      .toISOString()}`)
+    console.log(post.content)
+  }
+}
+main().catch(console.error)
+```
+
+
+
+
+
+# 8 Structural Design Patterns
+
+### Proxy
+- a proxy is an object that controls access to another object
+- 
+### Decorator
+### Adapter
+
+### Reactive Programming
+
+
+
+
+# 9 Behavioral Design Patterns
+
+
+

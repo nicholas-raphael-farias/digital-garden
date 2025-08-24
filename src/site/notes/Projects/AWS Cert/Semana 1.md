@@ -4,6 +4,11 @@
 
 Secciones 7.8.9
 
+7 ELB + ASG
+8 RDS + Aurora + ElastiCache
+9 Route 53
+
+
 **Scalability** app can handle greater loads
 - horizontal, vertical
 **High availability** run app on at least 2 data centers
@@ -70,6 +75,10 @@ Secciones 7.8.9
 - *Cooldowns*: tiempo de espera despues de que un scaling event suceda
 - *Instance Refresh*: recrear todas las instancias al actualizar el launch template
 
+**Scaling policies**
+- a scaling policy instructs amazon ec2 auto scaling to track a specific cloduwatch metric, it defines what action to take when the associated cloaudwatch alarm is in ALARM
+- if the capacity calculation produces a number outside of the minimum and maximum size range for that group amazon ec2 auto scaling *ensures that the new capacity never goes outside of the min or max limits*
+
 PAGINA 140
 
 Seccion 8 RDS, Aurora & Elasticache
@@ -107,9 +116,9 @@ Seccion 8 RDS, Aurora & Elasticache
 **ElastiCache** in-memory database
 - helps reduce load off and make apps stateless ***check, stateless?*** 
 
-![Screenshot 2025-06-13 at 8.43.27 AM.png](/img/user/Screenshot%202025-06-13%20at%208.43.27%20AM.png)
+![Screenshot 2025-06-13 at 8.43.27 AM.png](/img/user/Images/Screenshot%202025-06-13%20at%208.43.27%20AM.png)
 
-![Screenshot 2025-06-13 at 8.43.45 AM.png](/img/user/Screenshot%202025-06-13%20at%208.43.45%20AM.png)
+![Screenshot 2025-06-13 at 8.43.45 AM.png](/img/user/Images/Screenshot%202025-06-13%20at%208.43.45%20AM.png)
 
 **ElastiCache Redis vs Memcached**
 - Redis
@@ -134,13 +143,94 @@ Seccion 8 RDS, Aurora & Elasticache
 	- *usually combined with lazy loading*
 
 lazy loading
-![Screenshot 2025-06-13 at 8.53.48 AM.png](/img/user/Screenshot%202025-06-13%20at%208.53.48%20AM.png)
+![Screenshot 2025-06-13 at 8.53.48 AM.png](/img/user/Images/Screenshot%202025-06-13%20at%208.53.48%20AM.png)
 
 write through
-![Screenshot 2025-06-13 at 8.53.57 AM.png](/img/user/Screenshot%202025-06-13%20at%208.53.57%20AM.png)
+![Screenshot 2025-06-13 at 8.53.57 AM.png](/img/user/Images/Screenshot%202025-06-13%20at%208.53.57%20AM.png)
 
 
 PAGINA 167
+
+###### DNS
+- DNS Domain Name System, translates hostnames into ips
+- Registar: Amazon, GoDaddy
+- Top Level Domain TLD .com | .us | .gov | etc
+- Second Level Domain amazon.com | google.com | etc
+
+DNS - checks servers in order
+Root DNS Server -> TLD DNS Server -> SLD DNS Server
+
+Root DNS Server recognizes the .com and where to find more
+TLD DNS Server recognizes example.com ans where to find more
+SLD DNS Server *owned by the Registar* returns the info of the server
+
+![Screenshot 2025-06-15 at 2.58.33 PM.png](/img/user/Images/Screenshot%202025-06-15%20at%202.58.33%20PM.png)
+
+###### Route53 
+- highly available, fully managed and *Authoritative* DNS (the user controls the DNS records)
+- also a domain registrar
+- only service 100% availability SLA
+
+###### Records
+- 5 parts domain | type | value | routing policy | TTL
+- types
+	- A maps a IPv4
+	- AAAA maps a IPv6
+	- CNAME maps hostname a hostname
+		- *ONLY WORK FOR NON ROOT DOMAIN* (domain.com wouldn't work) (some.domain.com would work)
+	- NS Name Servers for the Hosted Zone (controlan como el trafico es ruteado)
+
+###### Hosted Zones
+- Public Hosted Zones contains records that specify how to route public domain names
+- Private Hosted Zones contains records that specify how to route private domain names (within one or more VPCs)
+
+###### TTL 
+- time the result is cached
+
+###### Alias records
+- Points a hostname to an AWS Resource 
+- *works for root domains and non root domains*
+- *free of charge*
+- *native health check*
+- automatically recognizes changes on resources ip's
+- of type A or AAAA 
+- you cannot set the TTL
+- targets
+	- ELB | Cloudfront distribution | API Gateway | beanstalk | s3 websites
+- an EC2 DNS name CANNOT be a target
+
+###### Routing Policies
+- simple can have multiple records, client chooses one randomly *does not allowed health checks*
+- weighted if all records weight 0 all records will be returned equally 
+- latency 
+- Failover
+- Geolocation based on users location
+- Ip based uses the client's IP addresses, you give a list of CIDRs for your clients
+- Multi-Value *can be associated with health checks*, up to 8, 
+- Geoproximity based on location of resources and users | use trafficflow for visual feedback
+
+![Screenshot 2025-06-15 at 4.25.32 PM.png](/img/user/Images/Screenshot%202025-06-15%20at%204.25.32%20PM.png)
+
+![Screenshot 2025-06-15 at 4.25.39 PM.png](/img/user/Images/Screenshot%202025-06-15%20at%204.25.39%20PM.png)
+
+###### Health Checks
+- Only for public resources
+- health checks for an endpoint
+	- 15 global checkers check the health
+	- every 30 seconds
+	- if > 18% marked as healthy
+- health checks for other health checkers (calculated health checks)
+	- combine results 
+	- you can use OR | AND | NOT operators
+	- up to 256 childs
+- Health checks Private Hosted Zones
+	- *you have to create a cloudwatch metric associated to a cloudwatch alarm then create the health check on the alarm itself*
+
+###### Domain Registar vs. DNS Service
+- Registar from whom you bought the domain
+- DNS Service is a service that helps you manage your DNS records
+
+
 
 
 

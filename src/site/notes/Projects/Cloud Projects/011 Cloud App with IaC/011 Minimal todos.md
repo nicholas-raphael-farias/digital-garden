@@ -334,10 +334,10 @@ I find useful the graphic representation of the vpc's structure
 ![Screenshot 2025-08-31 at 6.06.57 PM.png](/img/user/Projects/Cloud%20Projects/011%20Cloud%20App%20with%20IaC/Screenshot%202025-08-31%20at%206.06.57%20PM.png)
 
 also, once the ALB is created, there is also a similar helper graph to see the specific targets the load balancer has at that moment 
-![Screenshot 2025-08-31 at 5.58.00 PM.png](/img/user/Screenshot%202025-08-31%20at%205.58.00%20PM.png)
+![[Screenshot 2025-08-31 at 5.58.00 PM.png\|Screenshot 2025-08-31 at 5.58.00 PM.png]]
 
 After visiting the ALB dns name on port 300 i was able to see the app running 
-![Screenshot 2025-08-31 at 5.57.28 PM.png](/img/user/Screenshot%202025-08-31%20at%205.57.28%20PM.png)
+![[Screenshot 2025-08-31 at 5.57.28 PM.png\|Screenshot 2025-08-31 at 5.57.28 PM.png]]
 
 I'm working on an AWS certification and it was really useful to practice this exercise, it helped to solidify my understanding of ecs and networking
 

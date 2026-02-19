@@ -12,60 +12,35 @@ infrastructure automation with terraform
 ## Process
 
 ### Release strategy
+
 There are 2 environments, dev prod, on this version im not using docker so the artifact creation process involves s3
 - development: on pushes to development branch an artifact is created with the commit hash associated
 - production: is attached to a github release version pushed to main, an artifact is created with the tag version associated 
 ### Terraform 
 - environments
 - modules
-
-One S3 bucket, two IAM roles, prefix-based separation. No long-lived AWS keys — GitHub authenticates via OIDC.
-
+- S3 buckets
+- 2 IAM roles
 
 ### Configuration steps
-- setup aws credentials
-- Manual Steps Before Use
-
-  1. Create the Terraform state bucket spineproject-terraform-state in AWS
-  2. Update terraform.tfvars files with your actual GitHub org/repo and AWS account ID
-  3. terraform apply dev first → copy oidc_provider_arn output into prod's terraform.tfvars
-  4. terraform apply prod
-  5. Set GitHub secrets: AWS_ROLE_ARN_DEV, AWS_ROLE_ARN_PROD and variables: AWS_REGION, ARTIFACTS_BUCKET
-
-
-
-
+- Setup aws credentials
+- Create bucket
+- set terraform.tfvars
+- run terraform apply dev and copy oidc_provider_arn to prod
+- set github secrets
+	- AWS_ROLE_ARN_DEV
+	- AWS_ROLE_ARN_PROD
+	- AWS_REGION
+	- ARTIFACTS_BUCKET
 
 
 ### Authentication in aws and github
 
-Traditional approach: store an AWS access key + secret in GitHub secrets. Problem — those are long-lived credentials. If leaked, anyone can use them until you rotate.
+Traditional
+store an AWS access key + secret in GitHub secrets. Problem — those are long-lived credentials. If leaked, anyone can use them until you rotate.
 
-OIDC approach (what we use): GitHub Actions mints a short-lived JWT token for each workflow run. AWS verifies the token's signature, checks the claims, and issues temporary credentials (valid ~1 hour). No stored secrets. Nothing to rotate. Nothing to leak.
-
-GitHub Actions workflow starts
-          │
-          ▼
-  GitHub mints a JWT (OIDC token) containing:
-    iss: "https://token.actions.githubusercontent.com"
-    aud: "sts.amazonaws.com"
-    sub: "repo:(REPO_NAME):ref:refs/heads/development"
-          │
-          ▼
-  aws-actions/configure-aws-credentials calls AWS STS:
-    "AssumeRoleWithWebIdentity, here's my JWT, I want role X"
-          │
-          ▼
-  AWS STS checks:
-    1. Is the JWT issuer registered? (OIDC provider exists?)
-    2. Does the role's trust policy allow this issuer + audience + subject?
-    3. All good → returns temporary AccessKeyId + SecretAccessKey + SessionToken
-          │
-          ▼
-  Workflow uses those temp credentials for aws s3 cp commands
-          │
-          ▼
-  Credentials expire after ~1 hour. Nothing persists.
+OIDC
+GitHub Actions mints a short-lived JWT token for each workflow run. AWS verifies the token's signature, checks the claims, and issues temporary credentials (valid ~1 hour). No stored secrets. Nothing to rotate. Nothing to leak.
 
 
 On aws
@@ -76,10 +51,6 @@ An ARN (Amazon Resource Name) is just a globally unique ID for any AWS resource.
 IAM Policy 
 
 Each IAM role has two parts: a *trust policy* (who can assume it) and a *permissions policy* (what they can do once assumed).
-
-
-
-
 
  Trust Policy (Who Can Assume the Role)
 
@@ -198,15 +169,6 @@ Once GitHub Actions has assumed the role and received temporary credentials, thi
 
 
 
-
-
-
-
-
-
-
-
-
 ### Steps
 i ran the terraform init and terraform plan and terrafom apply on develop 
 
@@ -220,7 +182,7 @@ out prod
 github_actions_role_arn = "arn:aws:iam::321488448826:role/spineproject-github-actions-prod"
 
 
-
+### Errors
 
 
 copy failed: s3://spineproject-artifacts/dev/5b24803015206e7ced7eac2e499b7b53b2feea16.zip to s3://spineproject-artifacts/dev/latest.zip An error occurred (AccessDenied) when calling the GetObjectTagging operation: User: arn:aws:sts::321488448826:assumed-role/spineproject-github-actions-dev/GitHubActions is not authorized to perform: s3:GetObjectTagging on resource: "arn:aws:s3:::spineproject-artifacts/dev/5b24803015206e7ced7eac2e499b7b53b2feea16.zip" because no identity-based policy allows the s3:GetObjectTagging action
@@ -342,39 +304,3 @@ terraform init      ← downloads AWS provider, connects to S3 backend
 1. .terraform/ directories — These contain downloaded providers (the ~400MB terraform-provider-aws binary), local state, and module cache. They should never be
   committed — they're equivalent to node_modules/.
   2. AWSCLIV2.pkg — This is the AWS CLI installer binary. Definitely shouldn't be in the repo.
-
-
-
-
-
-
-## CLAUDE
-
-  GitHub Actions (4 files)
-
-  - .github/workflows/ci.yml — added workflow_call: trigger so deploy workflows can reuse it as a gate
-  - .github/actions/build-zip/action.yml — composite action: installs deps, builds, prunes to prod deps, creates zip with dist/ + node_modules/ + package.json
-  - .github/workflows/deploy-dev.yml — on push to development: runs CI, builds zip, uploads to s3://bucket/dev/{sha}.zip + copies to dev/latest.zip. Has
-  cancel-in-progress: true concurrency
-  - .github/workflows/release-prod.yml — on v* tag: runs CI, builds zip, uploads to s3://bucket/prod/{tag}.zip + copies to prod/latest.zip, creates GitHub Release
-   with the zip attached
-
-  Terraform Modules (3 modules, 9 files)
-
-  - modules/artifacts-bucket — S3 bucket with versioning, AES256 encryption, public access block, lifecycle rules (dev/ expires after 30d, prod/ transitions to IA
-   after 90d)
-  - modules/ci-iam — GitHub OIDC provider (conditionally created), IAM role with S3 access scoped to env prefix
-  - modules/app — Skeleton with variables defined (instance_type, ASG sizing, VPC/subnet IDs) but no resources yet
-
-  Terraform Environments (2 envs, 10 files)
-
-  - environments/dev — Creates the artifacts bucket + OIDC provider + dev IAM role. Outputs oidc_provider_arn needed by prod
-  - environments/prod — References existing bucket via data source, uses existing OIDC provider ARN, creates prod IAM role scoped to prod/* and v* tags
-
-  Manual Steps Before Use
-
-  1. Create the Terraform state bucket spineproject-terraform-state in AWS
-  2. Update terraform.tfvars files with your actual GitHub org/repo and AWS account ID
-  3. terraform apply dev first → copy oidc_provider_arn output into prod's terraform.tfvars
-  4. terraform apply prod
-  5. Set GitHub secrets: AWS_ROLE_ARN_DEV, AWS_ROLE_ARN_PROD and variables: AWS_REGION, ARTIFACTS_BUCKET
